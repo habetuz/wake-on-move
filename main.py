@@ -44,10 +44,20 @@ class MotionDetector:
 
     def initialize_camera(self, camera_index=0):
         """Initialize the camera"""
+        print(f"Attempting to open camera {camera_index}...")
         self.camera = cv2.VideoCapture(camera_index)
+        print(f"VideoCapture object created")
+        
         if not self.camera.isOpened():
             raise RuntimeError(f"Could not open camera {camera_index}")
-
+        
+        print(f"Camera opened, testing frame read...")
+        # Test read a frame to ensure camera is actually working
+        ret, frame = self.camera.read()
+        if not ret:
+            raise RuntimeError(f"Camera {camera_index} opened but cannot read frames")
+        print(f"Frame read successful: {frame.shape}")
+        
         # Let camera warm up
         time.sleep(1)
         print(f"Camera initialized (index: {camera_index})")
