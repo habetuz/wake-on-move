@@ -39,6 +39,8 @@ class MotionDetector:
         self.first_frame = None
         self.camera = None
         self.dilation_kernel = np.ones((3, 3), dtype=np.uint8)
+        self.no_motion_count = 0
+        self.motion_count = 0
 
     def initialize_camera(self, camera_index=0):
         """Initialize the camera"""
@@ -102,14 +104,20 @@ class MotionDetector:
 
         return False
 
-    def update_baseline(self, frame):
+    def update_baseline(self, frame, motion_detected=False):
         """Update baseline frame for motion detection"""
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         gray = cv2.GaussianBlur(gray, (self.blur_size, self.blur_size), 0)
 
-        # Slowly update baseline to adapt to lighting changes
         if self.first_frame is not None:
-            self.first_frame = cv2.addWeighted(self.first_frame, 0.95, gray, 0.05, 0)
+            # After 2 seconds of sustained motion (20 frames), replace baseline almost completely
+            if self.motion_count > 20:
+                # Aggressively reset baseline
+                self.first_frame = cv2.addWeighted(self.first_frame, 0.1, gray, 0.9, 0)
+            elif not motion_detected:
+                # Adapt when no motion
+                self.first_frame = cv2.addWeighted(self.first_frame, 0.7, gray, 0.3, 0)
+            # Don't update baseline during active motion
         else:
             self.first_frame = gray
 
@@ -148,7 +156,10 @@ class MotionDetector:
                 # Detect motion every frame
                 motion_detected = self.detect_motion(frame)
 
+                # Track motion over time
                 if motion_detected:
+                    self.motion_count += 1
+                    self.no_motion_count = 0
                     print(f"[{datetime.now().strftime('%H:%M:%S')}] Motion detected!")
                     if (
                         self.last_motion_time is None
@@ -157,10 +168,14 @@ class MotionDetector:
                     ):
                         self.last_motion_time = datetime.now()
                         self.enable_screen()
+                else:
+                    self.no_motion_count += 1
+                    if self.no_motion_count > 100:
+                        # Reset motion counter after sustained period of no motion
+                        self.motion_count = 0
 
-                # Update baseline frame periodically
-                if frame_count % 30 == 0:
-                    self.update_baseline(frame)
+                # Update baseline frame every iteration
+                self.update_baseline(frame, motion_detected)
 
                 # Optional: Show video feed
                 if show_video:
@@ -181,7 +196,7 @@ class MotionDetector:
                     if cv2.waitKey(1) & 0xFF == ord("q"):
                         break
 
-                # Small delay to reduce CPU usage
+                # Fast polling for quick motion detection
                 time.sleep(0.1)
 
         except KeyboardInterrupt:
