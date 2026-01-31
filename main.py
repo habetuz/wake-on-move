@@ -45,22 +45,52 @@ class MotionDetector:
     def initialize_camera(self, camera_index=0):
         """Initialize the camera"""
         print(f"Attempting to open camera {camera_index}...")
-        self.camera = cv2.VideoCapture(camera_index)
-        print(f"VideoCapture object created")
-        
+
+        # Map camera index to camera name for libcamera
+        camera_names = {
+            0: "Internal back camera",
+            1: "Internal front camera",
+        }
+        camera_name = camera_names.get(camera_index, "Internal front camera")
+
+        # Try GStreamer with libcamera first (best for modern Linux cameras)
+        gst_pipeline = (
+            f'libcamerasrc camera-name="{camera_name}" ! '
+            f"video/x-raw,width=640,height=480,framerate=30/1 ! "
+            f"videoconvert ! appsink"
+        )
+
+        print(f"Trying GStreamer pipeline with libcamera ({camera_name})...")
+        self.camera = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
+
         if not self.camera.isOpened():
-            raise RuntimeError(f"Could not open camera {camera_index}")
-        
+            print(f"GStreamer with {camera_name} failed.")
+            # Try the other camera
+            alt_name = "Internal back camera" if camera_name == "Internal front camera" else "Internal front camera"
+            print(f"Trying {alt_name}...")
+            gst_pipeline = (
+                f'libcamerasrc camera-name="{alt_name}" ! '
+                f"video/x-raw,width=640,height=480,framerate=30/1 ! "
+                f"videoconvert ! appsink"
+            )
+            self.camera = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
+
+        if not self.camera.isOpened():
+            print("Both GStreamer cameras failed.")
+            print("\nMake sure GStreamer plugins are installed:")
+            print("  sudo apt install gstreamer1.0-plugins-bad gstreamer1.0-libcamera")
+            raise RuntimeError(f"Could not open camera with GStreamer")
+
         print(f"Camera opened, testing frame read...")
         # Test read a frame to ensure camera is actually working
         ret, frame = self.camera.read()
         if not ret:
-            raise RuntimeError(f"Camera {camera_index} opened but cannot read frames")
+            raise RuntimeError(f"Camera opened but cannot read frames")
         print(f"Frame read successful: {frame.shape}")
-        
+
         # Let camera warm up
         time.sleep(1)
-        print(f"Camera initialized (index: {camera_index})")
+        print(f"Camera initialized successfully")
 
     def enable_screen(self):
         """Enable/wake the screen"""
