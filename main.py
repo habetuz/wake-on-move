@@ -46,40 +46,23 @@ class MotionDetector:
         """Initialize the camera"""
         print(f"Attempting to open camera {camera_index}...")
 
-        # Map camera index to camera name for libcamera
-        camera_names = {
-            0: "Internal back camera",
-            1: "Internal front camera",
-        }
-        camera_name = camera_names.get(camera_index, "Internal front camera")
-
-        # Try GStreamer with libcamera first (best for modern Linux cameras)
+        # Try GStreamer with libcamera using index
         gst_pipeline = (
-            f'libcamerasrc camera-name="{camera_name}" ! '
+            f"libcamerasrc ! "
             f"video/x-raw,width=640,height=480,framerate=30/1 ! "
             f"videoconvert ! appsink"
         )
 
-        print(f"Trying GStreamer pipeline with libcamera ({camera_name})...")
+        print(f"Trying GStreamer pipeline with libcamera...")
         self.camera = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
 
         if not self.camera.isOpened():
-            print(f"GStreamer with {camera_name} failed.")
-            # Try the other camera
-            alt_name = "Internal back camera" if camera_name == "Internal front camera" else "Internal front camera"
-            print(f"Trying {alt_name}...")
-            gst_pipeline = (
-                f'libcamerasrc camera-name="{alt_name}" ! '
-                f"video/x-raw,width=640,height=480,framerate=30/1 ! "
-                f"videoconvert ! appsink"
-            )
-            self.camera = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
-
-        if not self.camera.isOpened():
-            print("Both GStreamer cameras failed.")
-            print("\nMake sure GStreamer plugins are installed:")
-            print("  sudo apt install gstreamer1.0-plugins-bad gstreamer1.0-libcamera")
-            raise RuntimeError(f"Could not open camera with GStreamer")
+            print("GStreamer with libcamera failed.")
+            print("\nTry running with LD_PRELOAD wrapper instead:")
+            print("  LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libcamera/v4l2-compat.so python main.py")
+            print("\nOr install GStreamer plugins:")
+            print("  sudo apt install gstreamer1.0-plugins-bad gstreamer1.0-libcamera python3-opencv")
+            raise RuntimeError(f"Could not open camera")
 
         print(f"Camera opened, testing frame read...")
         # Test read a frame to ensure camera is actually working
