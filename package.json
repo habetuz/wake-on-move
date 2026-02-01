@@ -1,0 +1,23 @@
+{
+  "name": "wake-on-move",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@types/node-webcam": "^0.8.3",
+    "@types/pixelmatch": "^5.2.6",
+    "commander": "^14.0.3",
+    "jimp": "^1.6.0",
+    "node-webcam": "^0.8.2",
+    "pixelmatch": "^7.1.0"
+  },
+  "scripts": {
+    "start": "bun index.ts"
+  }
+}

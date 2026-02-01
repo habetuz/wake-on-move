@@ -36,6 +36,7 @@
             # Add any you need here
             packages = with pkgs; [
               bun
+              fswebcam
             ];
 
             # Set any environment variables for your dev shell
